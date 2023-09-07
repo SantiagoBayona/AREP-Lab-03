@@ -9,10 +9,57 @@ import java.nio.charset.Charset;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 public class HttpServer {
 
-    public static void main(String[] args) throws IOException {
+    public static Map<String, GetService> URIstoAttend = new HashMap<String, GetService>();
+    private static Map<String, PostService> postRoutes = new HashMap<>();
+
+    public static void addURIs(String uri, GetService method) {
+        URIstoAttend.put(uri, method);
+    }
+
+    public static void addPost(String uri, PostService method) {
+        postRoutes.put(uri, method);
+    }
+
+    public static void main(String[] args) {
+
+        HttpServer.get("/hello", (request, response) -> {
+            //
+            return "Hello World";
+        });
+        HttpServer.get("/", (request, response) -> {
+            //
+            return getIndexResponse();
+        });
+        HttpServer.get("/imgg.png", (request, response) -> {
+            //
+            return "/imgg.png";
+        });
+        HttpServer.get("/img.jpg", (request, response) -> {
+            //
+            return "/img.jpg";
+        });
+        HttpServer.get("/imggg.jpg", (request, response) -> {
+            //
+            return "/imggg.jpg";
+        });
+        HttpServer.get("/index.html", (request, response) -> {
+            //
+            return "/index.html";
+        });
+
+        try {
+            HttpServer.start();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void start() throws IOException {
         ServerSocket serverSocket = null;
         try {
             serverSocket = new ServerSocket(35000);
@@ -32,7 +79,7 @@ public class HttpServer {
             }
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            String inputLine, outputLine;
+            String inputLine, outputLine = "";
             boolean firstline = true;
             String path = "";
             while ((inputLine = in.readLine()) != null) {
@@ -50,33 +97,23 @@ public class HttpServer {
 
             String responseBody = "";
 
-            if (path != null && path.equals("/")) {
-                responseBody = "DISEÑO Y ESTRUCTURACIÓN DE APLICACIONES DISTRIBUIDAS EN INTERNET";
-                outputLine = getLine(responseBody);
-            } else if (path != null && !getFile(path).equals("Not Found")) {
-                responseBody = getFile(path);
-                outputLine = getLine(responseBody);
-            } else if (path != null && path.split("\\.")[1].equals("jpg") ||
-                    path.split("\\.")[1].equals("png")) {
-                OutputStream outputStream = clientSocket.getOutputStream();
-                File file = new File("src/main/resources/img/" + path);
-                try {
-                    BufferedImage bufferedImage = ImageIO.read(file);
-                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                    DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
-                    ImageIO.write(bufferedImage, path.split("\\.")[1], byteArrayOutputStream);
-                    outputLine = getImg("");
-                    dataOutputStream.writeBytes(outputLine);
-                    dataOutputStream.write(byteArrayOutputStream.toByteArray());
-                    System.out.println(outputLine);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    responseBody = getFile(path);
-                    outputLine = getLine(responseBody);
+            for (String uriInCatalog : URIstoAttend.keySet()) {
+                if (path.equals(uriInCatalog)) {
+                    WebRequest request = new WebRequest();
+                    WebResponse response = new WebResponse();
+                    System.out.println(URIstoAttend.get(uriInCatalog).getMethod(request, response));
+                    System.out.println(uriInCatalog);
+                    if (URIstoAttend.get(uriInCatalog).getMethod(request, response).equals(uriInCatalog)) {
+                        outputLine = searchFile(path, responseBody, outputLine, clientSocket);
+                    } else {
+                        URIstoAttend.get(uriInCatalog).getMethod(request, response);
+                        responseBody = URIstoAttend.get(uriInCatalog).getMethod(request, response);
+                        System.out.println("ResponseBody: " + responseBody);
+                        outputLine = getLine(responseBody);
+                    }
                 }
-            } else {
-                outputLine = getIndexResponse();
             }
+
             out.println(outputLine);
             out.close();
             in.close();
@@ -85,10 +122,29 @@ public class HttpServer {
         serverSocket.close();
     }
 
+    private static String searchFile(String uriString, String responseBody, String outputLine, Socket clientSocket) throws IOException {
+        if (uriString != null && !getFile(uriString).equals("Not Found")) {
+            responseBody = getFile(uriString);
+            outputLine = getLine(responseBody);
+        } else if (uriString != null && uriString.split("\\.")[1].equals("jpg") || uriString.split("\\.")[1].equals("png")) {
+            OutputStream outputStream = clientSocket.getOutputStream();
+            File file = new File("src/main/resources/img/" + uriString);
+            BufferedImage bufferedImage = ImageIO.read(file);
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
+            ImageIO.write(bufferedImage, uriString.split("\\.")[1], byteArrayOutputStream);
+            outputLine = getImg("");
+            dataOutputStream.writeBytes(outputLine);
+            dataOutputStream.write(byteArrayOutputStream.toByteArray());
+            System.out.println(outputLine);
+        }
+        return outputLine;
+    }
+
     public static String getFile(String route) {
         Path file = FileSystems.getDefault().getPath("src/main/resources/img", route);
         Charset charset = Charset.forName("US-ASCII");
-        String web = new String();
+        String web = "";
         try (BufferedReader reader = Files.newBufferedReader(file, charset)) {
             String line = "";
             while ((line = reader.readLine()) != null) {
@@ -101,21 +157,20 @@ public class HttpServer {
     }
 
     public static String getIndexResponse() {
-        String response = "HTTP/1.1 200 OK"
+        return "HTTP/1.1 200 OK"
                 + "Content-Type: text/html\r\n"
                 + "\r\n"
                 + "<!DOCTYPE html>\n" +
                 "<html>\n" +
                 "    <head>\n" +
-                "        <title>DISEÑO Y ESTRUCTURACIÓN DE APLICACIONES DISTRIBUIDAS EN INTERNET</title>\n" +
+                "        <title>MICROFRAMEWORKS WEB</title>\n" +
                 "        <meta charset=\"UTF-8\">\n" +
                 "        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
                 "    </head>\n" +
                 "    <body>\n" +
-                "        <h1>DISEÑO Y ESTRUCTURACIÓN DE APLICACIONES DISTRIBUIDAS EN INTERNET</h1>\n" +
+                "        <h1>MICROFRAMEWORKS WEB</h1>\n" +
                 "    </body>\n" +
                 "</html>";
-        return response;
     }
 
     public static String getLine(String responseBody) {
@@ -131,5 +186,13 @@ public class HttpServer {
         return "HTTP/1.1 200 OK \r\n"
                 + "Content-Type: image/jpg \r\n"
                 + "\r\n";
+    }
+
+    public static void get(String uri, GetService getService) {
+        addURIs(uri, getService);
+    }
+
+    public static void post(String uri, PostService postService) {
+        addPost(uri, postService);
     }
 }
