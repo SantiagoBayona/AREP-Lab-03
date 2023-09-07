@@ -14,11 +14,11 @@ import java.util.Map;
 
 public class HttpServer {
 
-    public static Map<String, GetService> URIstoAttend = new HashMap<String, GetService>();
+    public static Map<String, GetService> services = new HashMap<String, GetService>();
     private static Map<String, PostService> postRoutes = new HashMap<>();
 
     public static void addURIs(String uri, GetService method) {
-        URIstoAttend.put(uri, method);
+        services.put(uri, method);
     }
 
     public static void addPost(String uri, PostService method) {
@@ -97,17 +97,17 @@ public class HttpServer {
 
             String responseBody = "";
 
-            for (String uriInCatalog : URIstoAttend.keySet()) {
-                if (path.equals(uriInCatalog)) {
+            for (String service : services.keySet()) {
+                if (path.equals(service)) {
                     WebRequest request = new WebRequest();
                     WebResponse response = new WebResponse();
-                    System.out.println(URIstoAttend.get(uriInCatalog).getMethod(request, response));
-                    System.out.println(uriInCatalog);
-                    if (URIstoAttend.get(uriInCatalog).getMethod(request, response).equals(uriInCatalog)) {
+                    System.out.println(services.get(service).getMethod(request, response));
+                    System.out.println(service);
+                    if (services.get(service).getMethod(request, response).equals(service)) {
                         outputLine = searchFile(path, responseBody, outputLine, clientSocket);
                     } else {
-                        URIstoAttend.get(uriInCatalog).getMethod(request, response);
-                        responseBody = URIstoAttend.get(uriInCatalog).getMethod(request, response);
+                        services.get(service).getMethod(request, response);
+                        responseBody = services.get(service).getMethod(request, response);
                         System.out.println("ResponseBody: " + responseBody);
                         outputLine = getLine(responseBody);
                     }
@@ -122,17 +122,17 @@ public class HttpServer {
         serverSocket.close();
     }
 
-    private static String searchFile(String uriString, String responseBody, String outputLine, Socket clientSocket) throws IOException {
-        if (uriString != null && !getFile(uriString).equals("Not Found")) {
-            responseBody = getFile(uriString);
+    private static String searchFile(String path, String responseBody, String outputLine, Socket clientSocket) throws IOException {
+        if (path != null && !getFile(path).equals("Not Found")) {
+            responseBody = getFile(path);
             outputLine = getLine(responseBody);
-        } else if (uriString != null && uriString.split("\\.")[1].equals("jpg") || uriString.split("\\.")[1].equals("png")) {
+        } else if (path != null && path.split("\\.")[1].equals("jpg") || path.split("\\.")[1].equals("png")) {
             OutputStream outputStream = clientSocket.getOutputStream();
-            File file = new File("src/main/resources/img/" + uriString);
+            File file = new File("src/main/resources/img/" + path);
             BufferedImage bufferedImage = ImageIO.read(file);
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
-            ImageIO.write(bufferedImage, uriString.split("\\.")[1], byteArrayOutputStream);
+            ImageIO.write(bufferedImage, path.split("\\.")[1], byteArrayOutputStream);
             outputLine = getImg("");
             dataOutputStream.writeBytes(outputLine);
             dataOutputStream.write(byteArrayOutputStream.toByteArray());
