@@ -48,6 +48,8 @@ Al hacerlo vemos que el recurso solicitado carga en el navegador
 
 ![src/main/resources/img/](readme/Prueba.png)
 
+![src/main/resources/img/](readme/index.png)
+
 
 ## Construido con
 
